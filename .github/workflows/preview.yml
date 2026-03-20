@@ -2,11 +2,16 @@ name: PR Preview
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
 
 jobs:
-  build:
+  build-and-deploy:
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -24,35 +29,19 @@ jobs:
           cp README.md content
           jupyter lite build --contents content --output-dir dist
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-      pull-requests: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
       - name: Deploy PR preview
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          preview: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          destination_dir: pr-preview/pr-${{ github.event.pull_request.number }}
+          keep_files: true
 
       - name: Comment preview URL
         uses: actions/github-script@v7
         with:
           script: |
-            const url = '${{ steps.deployment.outputs.page_url }}';
+            const url = `https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-preview/pr-${{ github.event.pull_request.number }}/`;
             const body = `Preview deployed: ${url}`;
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -75,3 +64,23 @@ jobs:
                 body,
               });
             }
+
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v3
+        with:
+          ref: gh-pages
+
+      - name: Remove preview directory
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git rm -rf pr-preview/pr-${{ github.event.pull_request.number }} || true
+          git diff --cached --quiet || git commit -m "Remove preview for PR #${{ github.event.pull_request.number }}"
+          git push

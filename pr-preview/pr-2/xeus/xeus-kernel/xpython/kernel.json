@@ -1,0 +1,1 @@
+{"display_name": "Python 3.13 (XPython)", "argv": ["xeus/xeus-kernel/bin/xpython.js"], "language": "python", "metadata": {"debugger": false, "shared": {"libxeus.so": "lib/libxeus.so"}}, "resources": {"logo-64x64": "xeus/xeus-kernel/xpython/logo-64x64.png", "logo-32x32": "xeus/xeus-kernel/xpython/logo-32x32.png", "logo-svg": "xeus/xeus-kernel/xpython/logo-svg.svg"}}
